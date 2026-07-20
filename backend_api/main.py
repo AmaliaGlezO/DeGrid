@@ -121,3 +121,93 @@ def obtener_metricas(
         "registros_agrupados": len(respuesta),
         "datos": respuesta
     }
+
+
+
+from sqlalchemy import extract, case
+
+# --- ENDPOINT 3: PICOS DE DEMANDA POR BANDAS HORARIAS (CORREGIDO) ---
+@app.get("/api/v1/analitica/picos-demanda")
+def obtener_picos_demanda(db: Session = Depends(get_db)):
+    """
+    Analiza todo el histórico para determinar la demanda máxima registrada (MW)
+    agrupada por año, dividida en dos bandas horarias críticas:
+    - Pico Diurno (11:00 - 13:59)
+    - Pico Nocturno (18:00 - 22:59)
+    """
+    # 1. Extraemos el año y la hora
+    anio = extract('year', RegistroEnergetico.fecha_hora).label('anio')
+    hora = extract('hour', RegistroEnergetico.fecha_hora)
+
+    # 2. Clasificamos las horas en bandas analíticas
+    banda_horaria = case(
+        (hora.between(11, 13), 'Pico Diurno (11am - 1pm)'),
+        (hora.between(18, 22), 'Pico Nocturno (6pm - 10pm)'),
+        else_='Fuera de Pico'
+    ).label('banda')
+
+    # 3. Construimos la consulta pura agrupando por las expresiones
+    picos = db.query(
+        anio,
+        banda_horaria,
+        func.max(RegistroEnergetico.demanda_total_mw).label('demanda_maxima')
+    ).group_by(anio, banda_horaria).order_by(anio, banda_horaria).all()
+
+    # 4. Formateamos la estructura del JSON final
+    respuesta = {}
+    for fila in picos:
+        if fila.banda == 'Fuera de Pico':
+            continue
+        
+        # Convertimos el año a entero por consistencia
+        anio_int = int(fila.anio)
+        
+        if anio_int not in respuesta:
+            respuesta[anio_int] = {}
+            
+        respuesta[anio_int][fila.banda] = {
+            "potencia_maxima_mw": round(fila.demanda_maxima, 2) if fila.demanda_maxima else 0.0
+        }
+
+    return {
+        "analisis": "Picos máximos de demanda por bandas de carga históricas",
+        "datos_por_anio": respuesta
+    }
+
+
+# --- ENDPOINT 4: FACTOR DE CARGA INTERANUAL ---
+@app.get("/api/v1/analitica/factor-carga")
+def obtener_factor_carga(db: Session = Depends(get_db)):
+    """
+    Calcula el Factor de Carga Interanual de la red eléctrica global.
+    Fórmula: (Demanda Promedio / Demanda Máxima) * 100 para cada año.
+    """
+    anio = extract('year', RegistroEnergetico.fecha_hora).label('anio')
+
+    # Al ser cálculos masivos, dejamos que Postgres procese los promedios y máximos de golpe
+    metricas_anuales = db.query(
+        anio,
+        func.avg(RegistroEnergetico.demanda_total_mw).label('demanda_promedio'),
+        func.max(RegistroEnergetico.demanda_total_mw).label('demanda_maxima')
+    ).group_by('anio').order_by('anio').all()
+
+    respuesta = []
+    for fila in metricas_anuales:
+        if fila.demanda_maxima and fila.demanda_maxima > 0:
+            # Aplicamos la ecuación de ingeniería eléctrica
+            factor_carga = (fila.demanda_promedio / fila.demanda_maxima) * 100
+        else:
+            factor_carga = 0.0
+
+        respuesta.append({
+            "anio": int(fila.anio),
+            "demanda_promedio_mw": round(fila.demanda_promedio, 2),
+            "demanda_maxima_mw": round(fila.demanda_maxima, 2),
+            "factor_de_carga_porcentaje": round(factor_carga, 2)
+        })
+
+    return {
+        "metrica": "Factor de Carga Interanual Global",
+        "descripcion": "Un porcentaje alto indica estabilidad en el consumo; valores bajos exigen plantas pico.",
+        "historico": respuesta
+    }
