@@ -1,0 +1,50 @@
+
+services:
+  timeseries-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: timeseries-db
+    restart: always
+    env_file: 
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  analytics-api:
+    build: 
+      context: ./backend_api
+    container_name: analytics-api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      timeseries-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  frontend-dashboard:
+    build: 
+      context: ./frontend_app
+    container_name: frontend-dashboard
+    restart: always
+    ports:
+      - "8501:8501"
+    depends_on:
+      analytics-api:
+        condition: service_healthy 
+
+volumes:
+  pgdata:
