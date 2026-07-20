@@ -2,12 +2,18 @@ import os
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, Query, HTTPException
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, text
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
 
 # Importamos tu modelo ya definido
 from models import RegistroEnergetico
+
+from enum import Enum
+class UserRole(str, Enum):
+    DESPACHADOR = "Despachador de Carga"
+    DIRECTOR = "Director Provincial"
+    INSPECTOR = "Inspector de Eficiencia"
 
 
 load_dotenv()
@@ -210,4 +216,33 @@ def obtener_factor_carga(db: Session = Depends(get_db)):
         "metrica": "Factor de Carga Interanual Global",
         "descripcion": "Un porcentaje alto indica estabilidad en el consumo; valores bajos exigen plantas pico.",
         "historico": respuesta
+    }
+
+@app.get("/api/v1/analitica/sensibilidad-termica")
+def obtener_sensibilidad_termica(db: Session = Depends(get_db)):
+    """
+    Calcula la covarianza y varianza para determinar el impacto cuantitativo
+    de las temperaturas extremas sobre el pico de demanda de la red.
+    """
+    query = """
+        with estadisticas as (
+            select 
+                avg(demanda_total_mw) as avg_d,
+                avg(temperatura_max_c) as avg_t
+            from registro_energetico
+            where temperatura_max_c is not null
+        )
+        select 
+            sum((temperatura_max_c - avg_t) * (demanda_total_mw - avg_d)) / 
+            sum(power(temperatura_max_c - avg_t, 2)) as factor_sensibilidad_beta
+        from registro_energetico, estadisticas
+        where temperatura_max_c is not null;
+    """
+    resultado = db.execute(text(query)).fetchone()
+    factor_beta = resultado[0] if resultado and resultado[0] else 0.0
+
+    return {
+        "metrica": "Factor de Sensibilidad Térmica Global",
+        "impacto_cuantitativo": f"Por cada 1°C de incremento térmico, la demanda del sistema aumenta un estimado de {round(factor_beta, 2)} MW.",
+        "coeficiente_beta": round(factor_beta, 4)
     }
