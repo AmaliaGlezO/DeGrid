@@ -9,7 +9,7 @@ A través de una arquitectura con PostgreSQL, FastAPI y un tablero visual intera
 ### Requisitos Previos
 - Python 3.10+
 - PostgreSQL 15+ (local o en contenedor)
-- Node.js 16+ (para el dashboard)
+- Streamlit (para el dashboard)
 - Docker & Docker Compose (opcional, para despliegue)
 
 ### Paso 1: Generar Datos Sintéticos
@@ -51,9 +51,7 @@ La API estará disponible en `http://localhost:8000`
 En una nueva terminal, instala dependencias y ejecuta el servidor React:
 
 ```bash
-cd frontend_app
-npm install
-npm start
+streamlit run dashboard.py
 ```
 
 El dashboard se abrirá en `http://localhost:3000`
