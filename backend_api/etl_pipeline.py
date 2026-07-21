@@ -1,15 +1,9 @@
-import os
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from database import engine, SessionLocal
 from models import RegistroEnergetico, Base
 
 # 1. Configuración de la "Tubería" (Conexión)
-# Idealmente, esta URL debe venir de tu archivo .env
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Amaly1327@localhost:5432/energia_db")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Importa engine y SessionLocal desde database.py que carga .env automáticamente
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
