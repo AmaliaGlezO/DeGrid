@@ -13,11 +13,10 @@ st.set_page_config(
 
 API_URL = "http://127.0.0.1:8000/api/v1"
 
-st.title("⚡ DeGrid: Sistema de Balances y Matriz Energética Histórica")
+st.title(" DeGrid: Sistema de Balances y Matriz Energética Histórica")
 st.markdown("Control analítico y supervisión de cargas del sistema eléctrico interconectado.")
 
-# --- BARRA LATERAL: INTERFACES DE CONTROL (FILTROS) ---
-st.sidebar.header("🎛️ Filtros de Control")
+st.sidebar.header(" Filtros de Control")
 
 # 1. Traer circuitos dinámicamente desde la API
 try:
@@ -27,18 +26,15 @@ except Exception:
     lista_circuitos = []
     st.sidebar.error("No se pudo conectar con la API del Backend.")
 
-# Selector de Circuito (Añadimos opción de ver todos)
 circuito_seleccionado = st.sidebar.selectbox(
     "Selecciona un Circuito:",
     options=["Todos los Circuitos"] + lista_circuitos
 )
 
-# Selector de Rango de Fechas
-st.sidebar.subheader("📅 Rango de Análisis")
+st.sidebar.subheader(" Rango de Análisis")
 fecha_inicio = st.sidebar.date_input("Fecha Inicial:", datetime(2004, 1, 1))
 fecha_fin = st.sidebar.date_input("Fecha Final:", datetime(2004, 1, 7))
 
-# --- CONSULTA DE DATOS A LA API ---
 circuito_param = "" if circuito_seleccionado == "Todos los Circuitos" else circuito_seleccionado
 params = {
     "start_date": f"{fecha_inicio}T00:00:00",
@@ -54,16 +50,13 @@ with st.spinner("Pidiendo métricas en tiempo real al backend..."):
     except Exception as e:
         df = pd.DataFrame()
 
-# --- VALIDACIÓN DE DATOS ---
 if df.empty:
     st.warning("⚠️ No se encontraron registros para los filtros seleccionados o el backend está apagado.")
 else:
-    # Ordenamos y formateamos columnas
     df['fecha'] = pd.to_datetime(df['fecha'])
     df = df.sort_values('fecha')
 
-    # --- PANELES MÉTRICOS PRINCIPALES (CONTROL DE BALANCES) ---
-    st.subheader("📊 Balance Energético del Periodo")
+    st.subheader("Balance Energético del Periodo")
     
     gen_total = (df['generacion_solar_mw_total'].sum() + 
                  df['generacion_termoelectrica_mw_total'].sum() + 
@@ -82,14 +75,12 @@ else:
 
     st.markdown("---")
 
-    # --- DISEÑO DE GRÁFICOS ---
     izq_col, der_col = st.columns(2)
 
     with izq_col:
-        st.subheader("📈 Curva de Carga Eléctrica (Demanda)")
+        st.subheader("Curva de Carga Eléctrica (Demanda)")
         st.markdown("*Evolución temporal del comportamiento del consumo en la ventana analizada.*")
-        
-        # Generación de la curva de carga tradicional
+  
         fig_demanda = px.line(
             df, 
             x='fecha', 
@@ -102,7 +93,7 @@ else:
         st.plotly_chart(fig_demanda, use_container_width=True)
 
     with der_col:
-        st.subheader("🥞 Matriz de Generación Energética")
+        st.subheader(" Matriz de Generación Energética")
         st.markdown("*Distribución y aporte de cada fuente tecnológica a la red.*")
         
         # Reformateamos el DataFrame para hacer el gráfico de áreas apiladas (Stacked Area Chart)
@@ -113,7 +104,6 @@ else:
             value_name='Megavatios (MW)'
         )
         
-        # Renombrar leyendas para estética visual
         df_melted['Fuente de Energía'] = df_melted['Fuente de Energía'].str.replace('_mw_total', '').str.replace('generacion_', '').str.title()
 
         fig_matriz = px.area(
@@ -129,9 +119,8 @@ else:
         )
         st.plotly_chart(fig_matriz, use_container_width=True)
 
-# --- SECCIÓN ANALÍTICA: SENSIBILIDAD TÉRMICA Y CLIMA ---
 st.markdown("---")
-st.header("🌡️ Análisis de Sensibilidad Térmica e Impacto Climatológico")
+st.header(" Análisis de Sensibilidad Térmica e Impacto Climatológico")
 st.markdown("Evaluación cuantitativa del efecto de las temperaturas extremas sobre el pico de demanda por climatización (HVAC).")
 
 try:
@@ -160,9 +149,8 @@ try:
             f"{df_clima['temp_max_c'].max()} °C"
         )
 
-        st.info(f"💡 **Diagnóstico del Sistema:** {metrics['diagnostico']}")
+        st.info(f" **Diagnóstico del Sistema:** {metrics['diagnostico']}")
 
-        # 2. GRÁFICO DE DISPERSIÓN CON LÍNEA DE TENDENCIA (SCATTER PLOT)
         fig_scatter = px.scatter(
             df_clima,
             x="temp_max_c",

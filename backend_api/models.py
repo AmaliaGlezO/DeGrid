@@ -24,19 +24,14 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
     
-    # El email será el identificador único para iniciar sesión
     email = Column(String(150), unique=True, index=True, nullable=False)
     
-    # ⚠️ IMPORTANTE: Nunca guardamos la contraseña en texto plano, solo el hash seguro
     hashed_password = Column(String(255), nullable=False)
     
-    # Almacenamos el rol como un string que coincida con nuestro Enum (UserRole)
     rol = Column(String(50), nullable=False)
     
-    # Control operativo por si un usuario es suspendido o dado de baja
     activo = Column(Boolean, default=True)
     
-    # Auditoría básica: fecha de creación del perfil
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):

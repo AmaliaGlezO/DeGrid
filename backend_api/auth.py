@@ -14,7 +14,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 🛑 FUNCIÓN AUXILIAR PARA PREVENIR EL LÍMITE DE BCRYPT
 def _truncar_password(password: str) -> str:
     """
     Bcrypt tiene un límite estricto de 72 bytes.
@@ -23,7 +22,6 @@ def _truncar_password(password: str) -> str:
     password_bytes = password.encode('utf-8')[:72]
     return password_bytes.decode('utf-8', errors='ignore')
 
-# 1. Funciones de verificación y hashing actualizadas
 def verificar_password(plain_password: str, hashed_password: str) -> bool:
     """Compara una contraseña en texto plano con su hash en la BD."""
     return pwd_context.verify(_truncar_password(plain_password), hashed_password)
@@ -32,7 +30,6 @@ def obtener_password_hash(password: str) -> str:
     """Genera un hash seguro irreversible a partir de una contraseña."""
     return pwd_context.hash(_truncar_password(password))
 
-# 2. Generación del Token JWT (Se mantiene igual)
 def crear_token_acceso(datos: dict, expires_delta: Optional[timedelta] = None) -> str:
     datos_a_cifrar = datos.copy()
     if expires_delta:
