@@ -128,3 +128,58 @@ else:
             }
         )
         st.plotly_chart(fig_matriz, use_container_width=True)
+
+# --- SECCIÓN ANALÍTICA: SENSIBILIDAD TÉRMICA Y CLIMA ---
+st.markdown("---")
+st.header("🌡️ Análisis de Sensibilidad Térmica e Impacto Climatológico")
+st.markdown("Evaluación cuantitativa del efecto de las temperaturas extremas sobre el pico de demanda por climatización (HVAC).")
+
+try:
+    res_clima = requests.get(f"{API_URL}/analitica/impacto-climatico")
+    data_clima = res_clima.json()
+    
+    if "analisis_cuantitativo" in data_clima:
+        metrics = data_clima["analisis_cuantitativo"]
+        df_clima = pd.DataFrame(data_clima["historico_diario"])
+        
+        # 1. PANELES DE IMPACTO CUANTITATIVO
+        c1, c2, c3 = st.columns(3)
+        c1.metric(
+            "Factor de Sensibilidad Térmica", 
+            f"+{metrics['factor_sensibilidad_mw_por_grado']} MW / °C",
+            delta="Impacto HVAC",
+            delta_color="inverse"
+        )
+        c2.metric(
+            "Correlación Temperatura vs Demanda", 
+            f"{round(metrics['coeficiente_correlacion'] * 100, 1)}%",
+            delta="Grado de dependencia"
+        )
+        c3.metric(
+            "Temp. Máxima Histórica Registrada", 
+            f"{df_clima['temp_max_c'].max()} °C"
+        )
+
+        st.info(f"💡 **Diagnóstico del Sistema:** {metrics['diagnostico']}")
+
+        # 2. GRÁFICO DE DISPERSIÓN CON LÍNEA DE TENDENCIA (SCATTER PLOT)
+        fig_scatter = px.scatter(
+            df_clima,
+            x="temp_max_c",
+            y="demanda_pico_mw",
+            color="temp_max_c",
+            color_continuous_scale="Reds",
+            labels={
+                "temp_max_c": "Temperatura Máxima Ambiental (°C)",
+                "demanda_pico_mw": "Demanda Pico Diaria (MW)"
+            },
+            title="Relación Dispersa entre Temperatura Máxima y Pico de Demanda",
+            trendline="ols", # Agrega línea de regresión lineal en tiempo real
+            trendline_color_override="darkred"
+        )
+        
+        fig_scatter.update_layout(height=500)
+        st.plotly_chart(fig_scatter, use_container_width=True)
+
+except Exception as e:
+    st.error(f"No se pudo cargar la analítica climatológica: {e}")
